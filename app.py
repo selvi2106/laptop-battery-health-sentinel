@@ -9,7 +9,7 @@ import os
 import sys
 import json
 from datetime import datetime, date
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 import pandas as pd
 import numpy as np
@@ -17,41 +17,76 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 
-# Ensure project root is available in sys.path
+# Ensure project root and src are available in sys.path (critical for Streamlit Cloud & nested runners)
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if os.path.isdir(SRC_DIR) and SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
-from src.soh_calculator import calculate_soh
-from src.alerts import (
-    evaluate_soh_alert,
-    generate_system_alerts,
-    build_alert_history_entry,
-    DEFAULT_CAUTION_THRESHOLD,
-    DEFAULT_CRITICAL_THRESHOLD
-)
-from src.windows_battery_report import (
-    generate_battery_report,
-    parse_battery_report_html,
-    get_live_battery_status,
-)
-from src.history_store import (
-    record_observation,
-    get_all_observations,
-    import_history_dataframe,
-    delete_observation,
-    clear_all_history,
-    export_history_to_csv,
-    PeriodicMonitor,
-)
-from src.data_loader import load_dataset
-from src.preprocessing import clean_lab_dataset, prepare_laptop_history_series, normalize_history_dataframe
-from src.train_model import train_and_evaluate_models
-from src.prediction import (
-    load_model_artifact,
-    forecast_laptop_degradation,
-    DEFAULT_EOL_THRESHOLD,
-)
+try:
+    from src.soh_calculator import calculate_soh
+    from src.alerts import (
+        evaluate_soh_alert,
+        generate_system_alerts,
+        build_alert_history_entry,
+        DEFAULT_CAUTION_THRESHOLD,
+        DEFAULT_CRITICAL_THRESHOLD
+    )
+    from src.windows_battery_report import (
+        generate_battery_report,
+        parse_battery_report_html,
+        get_live_battery_status,
+    )
+    from src.history_store import (
+        record_observation,
+        get_all_observations,
+        import_history_dataframe,
+        delete_observation,
+        clear_all_history,
+        export_history_to_csv,
+        PeriodicMonitor,
+    )
+    from src.data_loader import load_dataset
+    from src.preprocessing import clean_lab_dataset, prepare_laptop_history_series, normalize_history_dataframe
+    from src.train_model import train_and_evaluate_models
+    from src.prediction import (
+        load_model_artifact,
+        forecast_laptop_degradation,
+        DEFAULT_EOL_THRESHOLD,
+    )
+except ModuleNotFoundError:
+    from soh_calculator import calculate_soh
+    from alerts import (
+        evaluate_soh_alert,
+        generate_system_alerts,
+        build_alert_history_entry,
+        DEFAULT_CAUTION_THRESHOLD,
+        DEFAULT_CRITICAL_THRESHOLD
+    )
+    from windows_battery_report import (
+        generate_battery_report,
+        parse_battery_report_html,
+        get_live_battery_status,
+    )
+    from history_store import (
+        record_observation,
+        get_all_observations,
+        import_history_dataframe,
+        delete_observation,
+        clear_all_history,
+        export_history_to_csv,
+        PeriodicMonitor,
+    )
+    from data_loader import load_dataset
+    from preprocessing import clean_lab_dataset, prepare_laptop_history_series, normalize_history_dataframe
+    from train_model import train_and_evaluate_models
+    from prediction import (
+        load_model_artifact,
+        forecast_laptop_degradation,
+        DEFAULT_EOL_THRESHOLD,
+    )
 
 # -----------------------------------------------------------------------------
 # Page Configuration & Professional Design System

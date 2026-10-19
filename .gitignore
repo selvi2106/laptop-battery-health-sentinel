@@ -35,12 +35,41 @@ htmlcov/
 # Local reports & user data (keep private laptop data local!)
 *.html
 *.db
+*.sqlite
+*.sqlite3
 battery-report.html
 temp_report.html
 battery_sentinel.db
 local_user_data/
 
+# Environment variables & secrets
+.env
+.env.*
+*.env
+.streamlit/secrets.toml
+secrets/
+*.pem
+*.key
+
+# Logs & temporary runtimes
+*.log
+logs/
+
 # IDE configurations
 .vscode/
 .idea/
 *.swp
+*.swo
+
+# Testing, type checking & coverage
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.coverage.*
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
