@@ -1,0 +1,33 @@
+{
+    "timestamp": "2026-10-13 19:30:15",
+    "dataset_source": "C:\\Users\\SELVI\\Desktop\\project\\laptop-battery-health-sentinel\\data\\sample_nasa_battery.csv",
+    "train_cells": [
+        "B0005",
+        "B0007"
+    ],
+    "test_cells": [
+        "B0006"
+    ],
+    "train_samples": 52,
+    "test_samples": 23,
+    "feature_columns": [
+        "cycle",
+        "ambient_temperature"
+    ],
+    "target": "soh_percent",
+    "linear_regression_metrics": {
+        "MAE": 2.741,
+        "RMSE": 3.944,
+        "R2": 0.824
+    },
+    "random_forest_metrics": {
+        "MAE": 3.2787,
+        "RMSE": 4.2392,
+        "R2": 0.7967
+    },
+    "feature_importance": {
+        "cycle": 1.0,
+        "ambient_temperature": 0.0
+    },
+    "disclaimer": "Trained strictly on laboratory cell cycling experiments. Not validated for real laptop battery packs without transfer calibration."
+}
