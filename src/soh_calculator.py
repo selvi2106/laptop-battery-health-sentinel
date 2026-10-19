@@ -44,7 +44,7 @@ def calculate_soh(
         - 'soh_percent': float or None (rounded to 2 decimal places)
         - 'is_valid': bool (True if inputs are physically valid)
         - 'status': str ('Success' or error description)
-        - 'message': str (Human-readable explanation for engineering students)
+        - 'message': str (Human-readable diagnostic status and evaluation notes)
         - 'full_charge_capacity': float
         - 'design_capacity': float
         - 'unit': str

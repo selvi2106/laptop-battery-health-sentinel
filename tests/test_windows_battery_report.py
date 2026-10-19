@@ -96,3 +96,9 @@ def test_get_live_battery_status_structure():
     assert "charge_percent" in res
     assert "status_text" in res
     assert "timestamp" in res
+    assert "design_voltage_v" in res
+    assert "live_voltage_v" in res
+    assert "discharge_rate_w" in res
+    assert "power_online" in res
+    assert "temperature_status" in res
+

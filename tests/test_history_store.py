@@ -128,3 +128,72 @@ def test_delete_and_export():
     del_ok = delete_observation(rec_id)
     assert del_ok is True
     assert len(get_all_observations()) == 0
+
+
+def test_date_and_source_filtering():
+    """Test date and source filters in get_all_observations."""
+    record_observation(
+        design_capacity_mwh=50000.0,
+        full_charge_capacity_mwh=48000.0,
+        soh_percent=96.0,
+        data_source="SRC_A",
+        timestamp="2024-01-01 10:00:00",
+        force_snapshot=True
+    )
+    record_observation(
+        design_capacity_mwh=50000.0,
+        full_charge_capacity_mwh=46000.0,
+        soh_percent=92.0,
+        data_source="SRC_B",
+        timestamp="2024-06-01 10:00:00",
+        force_snapshot=True
+    )
+
+    # Filter by date range
+    df_filtered = get_all_observations(start_date="2024-05-01", end_date="2024-12-31")
+    assert len(df_filtered) == 1
+    assert df_filtered.iloc[0]["Source"] == "SRC_B"
+
+    # Filter by source
+    df_src = get_all_observations(data_source="SRC_A")
+    assert len(df_src) == 1
+    assert df_src.iloc[0]["Source"] == "SRC_A"
+
+
+def test_import_history_dataframe():
+    """Test importing canonical historical DataFrame into SQLite."""
+    import pandas as pd
+    from src.history_store import import_history_dataframe
+
+    df = pd.DataFrame({
+        "Period": ["2024-01-01", "2024-01-08", "2024-01-15"],
+        "Full Charge Capacity (mWh)": [42000, 41500, 41000],
+        "Design Capacity (mWh)": [42000, 42000, 42000],
+        "SOH (%)": [100.0, 98.8, 97.6]
+    })
+
+    imported, skipped = import_history_dataframe(df, source_tag="TEST_IMPORT")
+    assert imported == 3
+    assert skipped == 0
+
+    obs = get_all_observations()
+    assert len(obs) == 3
+
+
+def test_periodic_monitor_lifecycle():
+    """Test PeriodicMonitor singleton controls and safety."""
+    from src.history_store import PeriodicMonitor
+
+    monitor = PeriodicMonitor.get_instance()
+    assert monitor is not None
+    assert not monitor.is_running
+
+    ok = monitor.start(interval_seconds=60)
+    assert ok is True
+    assert monitor.is_running
+    assert monitor.interval_seconds == 60
+
+    stop_ok = monitor.stop()
+    assert stop_ok is True
+    assert not monitor.is_running
+

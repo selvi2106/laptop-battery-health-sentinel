@@ -103,3 +103,71 @@ def test_generate_system_alerts_integration():
     severities = [a["severity"] for a in alerts]
     assert "CAUTION" in severities
     assert "ADVISORY" in severities
+
+
+def test_alerts_low_charge_and_critical():
+    """Verify low charge warnings and critical charge alarms while discharging."""
+    alerts_low = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        charge_percent=12.0,
+        power_status="Discharging"
+    )
+    categories = [a["category"] for a in alerts_low]
+    assert "LOW_CHARGE" in categories
+
+    alerts_crit = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        charge_percent=4.0,
+        power_status="Discharging"
+    )
+    categories_crit = [a["category"] for a in alerts_crit]
+    assert "CRITICAL_CHARGE" in categories_crit
+
+
+def test_alerts_high_discharge_rate():
+    """Verify elevated power drain alert (>35W)."""
+    alerts = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        discharge_rate_w=42.5
+    )
+    categories = [a["category"] for a in alerts]
+    assert "HIGH_POWER_DRAW" in categories
+
+
+def test_alerts_temperature_thresholds():
+    """Verify warning (>45C) and critical (>55C) temperature alerts."""
+    alerts_warn = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        temperature_c=48.0
+    )
+    assert any(a["category"] == "HIGH_TEMPERATURE" for a in alerts_warn)
+
+    alerts_crit = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        temperature_c=58.0
+    )
+    assert any(a["category"] == "CRITICAL_TEMPERATURE" for a in alerts_crit)
+
+
+def test_alerts_voltage_sag():
+    """Verify voltage sag warning when live voltage is >15% below nominal."""
+    alerts = generate_system_alerts(
+        current_soh=95.0,
+        current_fcc=50000,
+        current_dc=50000,
+        charge_percent=60.0,
+        live_voltage_v=9.2,
+        design_voltage_v=11.4
+    )
+    assert any(a["category"] == "VOLTAGE_SAG" for a in alerts)
+

@@ -174,7 +174,13 @@ def generate_system_alerts(
     history_df: Optional[pd.DataFrame] = None,
     last_scan_date: Optional[str] = None,
     caution_th: float = DEFAULT_CAUTION_THRESHOLD,
-    critical_th: float = DEFAULT_CRITICAL_THRESHOLD
+    critical_th: float = DEFAULT_CRITICAL_THRESHOLD,
+    charge_percent: Optional[float] = None,
+    power_status: Optional[str] = None,
+    live_voltage_v: Optional[float] = None,
+    design_voltage_v: Optional[float] = None,
+    discharge_rate_w: Optional[float] = None,
+    temperature_c: Optional[float] = None
 ) -> List[Dict[str, Any]]:
     """
     Run multi-factor alert evaluation and return active diagnostic alerts.
@@ -200,10 +206,10 @@ def generate_system_alerts(
             alerts.append({
                 "severity": "ADVISORY",
                 "category": "SPEC_ANOMALY",
-                "title": "Full Charge Capacity Exceeds Design Specification (>108%)",
+                "title": "Full Charge Capacity Exceeds Factory Specification (>108%)",
                 "reason": "Current full charge capacity is substantially higher than factory design rating.",
                 "supporting_measurement": f"FCC: {current_fcc:,.0f} mWh vs DC: {current_dc:,.0f} mWh",
-                "recommended_action": "Verify whether a third-party high-capacity replacement battery was installed.",
+                "recommended_action": "Verify whether a third-party high-capacity replacement battery was installed or if BMS calibration is required.",
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
 
@@ -217,6 +223,79 @@ def generate_system_alerts(
     fresh_alert = check_data_freshness(last_scan_date)
     if fresh_alert:
         alerts.append(fresh_alert)
+
+    # 5. Live Charge Level Check
+    is_discharging = power_status and "discharg" in power_status.lower()
+    if charge_percent is not None and is_discharging:
+        if charge_percent <= 5.0:
+            alerts.append({
+                "severity": "CRITICAL",
+                "category": "CRITICAL_CHARGE",
+                "title": f"Critical Battery Level ({charge_percent:.0f}%)",
+                "reason": "Battery charge is nearly depleted while discharging. System shutdown is imminent.",
+                "supporting_measurement": f"Remaining Charge: {charge_percent:.0f}%",
+                "recommended_action": "Connect AC power immediately to prevent sudden hibernation or uncommitted data loss.",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+        elif charge_percent <= 15.0:
+            alerts.append({
+                "severity": "WARNING",
+                "category": "LOW_CHARGE",
+                "title": f"Low Battery Charge Warning ({charge_percent:.0f}%)",
+                "reason": "Battery charge has dropped into the reserve buffer under unplugged operation.",
+                "supporting_measurement": f"Remaining Charge: {charge_percent:.0f}%",
+                "recommended_action": "Connect power adapter or close demanding applications to conserve remaining battery runtime.",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+    # 6. High Discharge Rate Check
+    if discharge_rate_w is not None and discharge_rate_w > 35.0:
+        alerts.append({
+            "severity": "WARNING",
+            "category": "HIGH_POWER_DRAW",
+            "title": f"Elevated Battery Discharge Draw ({discharge_rate_w:.1f} W)",
+            "reason": "Sustained high power draw increases cell internal ohmic heating and accelerates capacity fading.",
+            "supporting_measurement": f"Discharge Rate: {discharge_rate_w:.1f} W",
+            "recommended_action": "Check Task Manager for intensive background tasks or switch power profile to Balanced / Best Power Efficiency.",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+    # 7. Temperature Threshold Check (if hardware provides telemetry)
+    if temperature_c is not None:
+        if temperature_c > 55.0:
+            alerts.append({
+                "severity": "CRITICAL",
+                "category": "CRITICAL_TEMPERATURE",
+                "title": f"Critical Battery Temperature ({temperature_c:.1f}°C)",
+                "reason": "Battery temperature exceeds safe lithium-ion operational threshold (55°C).",
+                "supporting_measurement": f"Measured Temperature: {temperature_c:.1f}°C",
+                "recommended_action": "Unplug charger, reduce CPU/GPU workload, and ensure cooling intake vents are unobstructed.",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+        elif temperature_c > 45.0:
+            alerts.append({
+                "severity": "WARNING",
+                "category": "HIGH_TEMPERATURE",
+                "title": f"Elevated Battery Temperature ({temperature_c:.1f}°C)",
+                "reason": "Operating above 45°C accelerates electrolyte decomposition and reduces battery cycle longevity.",
+                "supporting_measurement": f"Measured Temperature: {temperature_c:.1f}°C",
+                "recommended_action": "Avoid charging on soft surfaces like beds or couches that block airflow.",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+    # 8. Voltage Sag Check
+    if live_voltage_v is not None and design_voltage_v is not None and design_voltage_v > 0:
+        if charge_percent is not None and charge_percent > 30.0:
+            if live_voltage_v < design_voltage_v * 0.85:
+                alerts.append({
+                    "severity": "WARNING",
+                    "category": "VOLTAGE_SAG",
+                    "title": "Substantial Battery Terminal Voltage Sag",
+                    "reason": "Live terminal voltage is >15% below nominal design voltage despite moderate charge level.",
+                    "supporting_measurement": f"Live: {live_voltage_v:.2f} V vs Nominal: {design_voltage_v:.2f} V",
+                    "recommended_action": "Observe whether system experiences throttling under load; may indicate elevated cell internal impedance.",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
 
     return alerts
 

@@ -48,18 +48,29 @@ def get_live_battery_status() -> Dict[str, Any]:
     """
     Retrieve real-time live battery status from the operating system.
 
-    Uses Windows CIM/WMI (Win32_Battery) via a safe, non-elevated query.
+    Queries Windows CIM/WMI (Win32_Battery, Win32_PortableBattery, and root/wmi:BatteryStatus)
+    via safe, non-elevated read-only queries.
 
     Returns
     -------
     dict
         - 'is_available': bool (True if a physical battery was queried)
-        - 'charge_percent': int or None (e.g., 92%)
+        - 'charge_percent': int or None (e.g., 72%)
         - 'status_code': int or None
-        - 'status_text': str ('Discharging', 'Charging', 'AC Connected', 'No Battery', etc.)
-        - 'estimated_runtime_minutes': int or None (e.g., 320 min)
+        - 'status_text': str ('Discharging', 'Charging', 'AC Connected', etc.)
+        - 'estimated_runtime_minutes': int or None (e.g., 111 min)
         - 'device_id': str or None
         - 'device_name': str or None
+        - 'manufacturer': str or None (e.g., 'BYD')
+        - 'chemistry': str or None (e.g., 'Li-Ion')
+        - 'design_voltage_v': float or None (e.g., 11.35 V)
+        - 'live_voltage_v': float or None (e.g., 11.20 V)
+        - 'discharge_rate_w': float or None (e.g., 14.8 W)
+        - 'charge_rate_w': float or None
+        - 'power_online': bool or None (True if plugged into AC)
+        - 'temperature_c': float or None (None if not exposed by hardware ACPI)
+        - 'temperature_status': str
+        - 'cycle_count': int or None
         - 'timestamp': str (ISO format)
         - 'error_message': str or None
     """
@@ -74,12 +85,25 @@ def get_live_battery_status() -> Dict[str, Any]:
             "estimated_runtime_minutes": None,
             "device_id": None,
             "device_name": None,
+            "manufacturer": None,
+            "chemistry": None,
+            "design_voltage_v": None,
+            "live_voltage_v": None,
+            "discharge_rate_w": None,
+            "charge_rate_w": None,
+            "power_online": None,
+            "temperature_c": None,
+            "temperature_status": "Unavailable on non-Windows OS",
+            "cycle_count": None,
             "timestamp": ts,
             "error_message": "Operating system is not Microsoft Windows."
         }
 
+    # Safe PowerShell script querying Win32_Battery, Win32_PortableBattery, and root/wmi:BatteryStatus
     ps_script = (
         "$b = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "$w = Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "$pb = Get-CimInstance Win32_PortableBattery -ErrorAction SilentlyContinue | Select-Object -First 1; "
         "if ($b) { "
         "  [PSCustomObject]@{ "
         "    Present = 1; "
@@ -87,7 +111,14 @@ def get_live_battery_status() -> Dict[str, Any]:
         "    Status = $b.BatteryStatus; "
         "    Runtime = $b.EstimatedRunTime; "
         "    DeviceID = $b.DeviceID; "
-        "    Name = $b.Name "
+        "    Name = $b.Name; "
+        "    DesignVoltage_mV = $b.DesignVoltage; "
+        "    LiveVoltage_mV = if ($w) { $w.Voltage } else { $null }; "
+        "    DischargeRate_mW = if ($w) { $w.DischargeRate } else { $null }; "
+        "    ChargeRate_mW = if ($w) { $w.ChargeRate } else { $null }; "
+        "    PowerOnline = if ($w) { [int]$w.PowerOnline } else { $null }; "
+        "    Manufacturer = if ($pb) { $pb.Manufacturer } else { $null }; "
+        "    Chemistry = if ($b.Chemistry) { $b.Chemistry } else { if ($pb) { $pb.Chemistry } else { $null } } "
         "  } | ConvertTo-Json -Compress "
         "} else { "
         "  [PSCustomObject]@{ Present = 0 } | ConvertTo-Json -Compress "
@@ -113,6 +144,16 @@ def get_live_battery_status() -> Dict[str, Any]:
                 "estimated_runtime_minutes": None,
                 "device_id": None,
                 "device_name": None,
+                "manufacturer": None,
+                "chemistry": None,
+                "design_voltage_v": None,
+                "live_voltage_v": None,
+                "discharge_rate_w": None,
+                "charge_rate_w": None,
+                "power_online": None,
+                "temperature_c": None,
+                "temperature_status": "Unavailable",
+                "cycle_count": None,
                 "timestamp": ts,
                 "error_message": "System reported no physical Win32_Battery instance."
             }
@@ -129,6 +170,16 @@ def get_live_battery_status() -> Dict[str, Any]:
                 "estimated_runtime_minutes": None,
                 "device_id": None,
                 "device_name": None,
+                "manufacturer": None,
+                "chemistry": None,
+                "design_voltage_v": None,
+                "live_voltage_v": None,
+                "discharge_rate_w": None,
+                "charge_rate_w": None,
+                "power_online": None,
+                "temperature_c": None,
+                "temperature_status": "Unavailable",
+                "cycle_count": None,
                 "timestamp": ts,
                 "error_message": "Desktop computer or AC-only power detected."
             }
@@ -141,6 +192,30 @@ def get_live_battery_status() -> Dict[str, Any]:
         if runtime is not None and (runtime <= 0 or runtime > 100000):
             runtime = None
 
+        # Format voltages (mV -> V)
+        design_v_raw = data.get("DesignVoltage_mV")
+        design_v = round(design_v_raw / 1000.0, 3) if design_v_raw and design_v_raw > 0 else None
+
+        live_v_raw = data.get("LiveVoltage_mV")
+        live_v = round(live_v_raw / 1000.0, 3) if live_v_raw and live_v_raw > 0 else design_v
+
+        # Format rates (mW -> W)
+        dis_rate_raw = data.get("DischargeRate_mW")
+        dis_rate_w = round(dis_rate_raw / 1000.0, 2) if dis_rate_raw and dis_rate_raw > 0 else None
+
+        chg_rate_raw = data.get("ChargeRate_mW")
+        chg_rate_w = round(chg_rate_raw / 1000.0, 2) if chg_rate_raw and chg_rate_raw > 0 else None
+
+        p_online_raw = data.get("PowerOnline")
+        power_online = bool(p_online_raw) if p_online_raw is not None else (status_code in (2, 3, 6, 7, 8, 9))
+
+        # Chemistry mapping: 1=Other, 2=Unknown/Li-Ion, 3=Lead Acid, 4=NiCd, 5=NiMH, 6=Li-Ion, 7=Zinc, 8=LiP
+        chem_code = data.get("Chemistry")
+        chem_map = {1: "Other", 2: "Li-Ion", 3: "Lead Acid", 4: "NiCd", 5: "NiMH", 6: "Li-Ion", 7: "Zinc Air", 8: "Li-Polymer"}
+        chem_str = chem_map.get(chem_code, "Li-Ion") if chem_code else "Li-Ion"
+
+        mfg = data.get("Manufacturer") or "OEM"
+
         return {
             "is_available": True,
             "charge_percent": int(charge) if charge is not None else None,
@@ -149,6 +224,16 @@ def get_live_battery_status() -> Dict[str, Any]:
             "estimated_runtime_minutes": int(runtime) if runtime is not None else None,
             "device_id": data.get("DeviceID"),
             "device_name": data.get("Name"),
+            "manufacturer": mfg,
+            "chemistry": chem_str,
+            "design_voltage_v": design_v,
+            "live_voltage_v": live_v,
+            "discharge_rate_w": dis_rate_w,
+            "charge_rate_w": chg_rate_w,
+            "power_online": power_online,
+            "temperature_c": None,  # Handled honestly: not reported by standard consumer ACPI WMI
+            "temperature_status": "Not reported by hardware/ACPI",
+            "cycle_count": None,
             "timestamp": ts,
             "error_message": None
         }
@@ -162,6 +247,16 @@ def get_live_battery_status() -> Dict[str, Any]:
             "estimated_runtime_minutes": None,
             "device_id": None,
             "device_name": None,
+            "manufacturer": None,
+            "chemistry": None,
+            "design_voltage_v": None,
+            "live_voltage_v": None,
+            "discharge_rate_w": None,
+            "charge_rate_w": None,
+            "power_online": None,
+            "temperature_c": None,
+            "temperature_status": "Unavailable",
+            "cycle_count": None,
             "timestamp": ts,
             "error_message": "PowerShell battery query timed out."
         }
@@ -174,6 +269,16 @@ def get_live_battery_status() -> Dict[str, Any]:
             "estimated_runtime_minutes": None,
             "device_id": None,
             "device_name": None,
+            "manufacturer": None,
+            "chemistry": None,
+            "design_voltage_v": None,
+            "live_voltage_v": None,
+            "discharge_rate_w": None,
+            "charge_rate_w": None,
+            "power_online": None,
+            "temperature_c": None,
+            "temperature_status": "Unavailable",
+            "cycle_count": None,
             "timestamp": ts,
             "error_message": str(e)
         }
