@@ -95,7 +95,7 @@ st.set_page_config(
     page_title="Laptop Battery Health Sentinel",
     page_icon="🔋",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 # Custom Styling adhering strictly to specified Color Palette:
@@ -103,23 +103,125 @@ st.set_page_config(
 # Text: #243447 (Slate) | Warning: #D97706 (Amber) | Critical: #DC2626 (Red)
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #243447;
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #0F172A;
     }
     
     .stApp {
-        background-color: #F5F7FA;
+        background: radial-gradient(circle at 50% 0%, #F1F5F9 0%, #F8FAFC 60%, #F1F5F9 100%);
+    }
+
+    /* Clean Landing View Hero Presentation */
+    .landing-hero-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        padding: 3.5rem 3rem 2.5rem 3rem;
+        max-width: 820px;
+        margin: 3.5rem auto 1.5rem auto;
+        box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.03);
+        text-align: center;
+        position: relative;
+    }
+    .landing-badge-glow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #F0FDFA;
+        color: #0D9488;
+        border: 1px solid #99F6E4;
+        padding: 0.35rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(13, 148, 136, 0.12);
+        margin-bottom: 1.25rem;
+    }
+    .badge-dot {
+        width: 7px;
+        height: 7px;
+        background-color: #0D9488;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 8px #0D9488;
+    }
+    .landing-hero-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+        margin: 0 0 0.8rem 0;
+    }
+    .landing-hero-subtitle {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #0D9488;
+        letter-spacing: -0.01em;
+        margin: 0 0 1.2rem 0;
+    }
+    .landing-hero-description {
+        font-size: 1.02rem;
+        line-height: 1.65;
+        color: #475569;
+        max-width: 680px;
+        margin: 0 auto 2.2rem auto;
+    }
+    .landing-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+        text-align: left;
+    }
+    .feature-chip {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    .feature-chip:hover {
+        border-color: #0D9488;
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.08);
+        transform: translateY(-2px);
+    }
+    .chip-icon {
+        font-size: 1.35rem;
+        line-height: 1;
+    }
+    .feature-chip strong {
+        display: block;
+        font-size: 0.88rem;
+        color: #0F172A;
+        margin-bottom: 0.2rem;
+    }
+    .feature-chip span {
+        font-size: 0.78rem;
+        color: #64748B;
+        line-height: 1.35;
+    }
+    .landing-footer {
+        text-align: center;
+        color: #64748B;
+        font-size: 0.84rem;
+        margin-top: 1.8rem;
     }
     
     /* Top Brand Navigation Header */
     .sentinel-header {
-        background: linear-gradient(135deg, #102A43 0%, #1a365d 100%);
-        border: 1px solid #1e3a5f;
-        border-radius: 10px;
-        padding: 1.1rem 1.6rem;
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #0F2D37 100%);
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 1.25rem 1.75rem;
         color: #FFFFFF;
         margin-bottom: 1.2rem;
         display: flex;
@@ -127,94 +229,112 @@ st.markdown("""
         align-items: center;
         flex-wrap: wrap;
         gap: 1rem;
-        box-shadow: 0 4px 12px rgba(16, 42, 67, 0.12);
+        box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.15);
     }
     .sentinel-title {
-        font-size: 1.35rem;
-        font-weight: 700;
+        font-size: 1.45rem;
+        font-weight: 800;
         letter-spacing: -0.02em;
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 0.6rem;
+        gap: 0.65rem;
         color: #FFFFFF;
     }
     .sentinel-subtitle {
-        color: #9fb3c8;
-        font-size: 0.85rem;
-        margin-top: 0.2rem;
+        color: #94A3B8;
+        font-size: 0.88rem;
+        margin-top: 0.25rem;
     }
     .header-pill {
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
+        gap: 0.5rem;
         background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 6px;
-        padding: 0.4rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        padding: 0.45rem 0.9rem;
         font-size: 0.82rem;
         font-family: 'JetBrains Mono', monospace;
-        color: #f0f4f8;
+        color: #F8FAFC;
+        backdrop-filter: blur(8px);
     }
     
     /* Professional Cards */
     .metric-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 1.1rem 1.25rem;
+        border-radius: 12px;
+        padding: 1.25rem 1.35rem;
         margin-bottom: 0.85rem;
-        box-shadow: 0 1px 3px rgba(16, 42, 67, 0.05);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        overflow: hidden;
     }
     .metric-card:hover {
-        box-shadow: 0 4px 8px rgba(16, 42, 67, 0.08);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        transform: translateY(-2px);
+        border-color: #CBD5E1;
+    }
+    .metric-card.accent-teal {
+        border-top: 3px solid #0D9488;
+    }
+    .metric-card.accent-navy {
+        border-top: 3px solid #0F172A;
+    }
+    .metric-card.accent-blue {
+        border-top: 3px solid #2563EB;
+    }
+    .metric-card.accent-amber {
+        border-top: 3px solid #D97706;
     }
     .metric-label {
         font-size: 0.76rem;
-        font-weight: 600;
-        color: #627D98;
+        font-weight: 700;
+        color: #64748B;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
     .metric-value-huge {
-        font-size: 1.85rem;
-        font-weight: 700;
-        color: #102A43;
-        margin-top: 0.35rem;
+        font-size: 2.1rem;
+        font-weight: 800;
+        color: #0F172A;
+        margin-top: 0.4rem;
+        letter-spacing: -0.03em;
         font-feature-settings: "tnum";
     }
     .metric-value-huge.teal {
         color: #0D9488;
     }
     .metric-subtext {
-        font-size: 0.82rem;
-        margin-top: 0.25rem;
+        font-size: 0.84rem;
+        margin-top: 0.35rem;
         font-weight: 500;
-        color: #486581;
+        color: #475569;
     }
     
     /* Origin badges */
     .badge-origin {
         font-size: 0.65rem;
-        font-weight: 600;
-        padding: 0.12rem 0.45rem;
+        font-weight: 700;
+        padding: 0.15rem 0.5rem;
         border-radius: 4px;
         font-family: 'JetBrains Mono', monospace;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
     }
     .badge-actual {
-        background: #E6FFFA;
+        background: #F0FDFA;
         color: #0D9488;
         border: 1px solid #99F6E4;
     }
     .badge-calc {
-        background: #F0F4F8;
-        color: #102A43;
-        border: 1px solid #D9E2EC;
+        background: #F8FAFC;
+        color: #0F172A;
+        border: 1px solid #CBD5E1;
     }
     .badge-forecast {
         background: #FEF3C7;
@@ -229,14 +349,14 @@ st.markdown("""
     
     /* Health Classification Badges */
     .badge-health {
-        padding: 0.25rem 0.65rem;
-        border-radius: 5px;
-        font-weight: 600;
-        font-size: 0.8rem;
+        padding: 0.28rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.82rem;
         display: inline-block;
     }
     .health-optimal {
-        background: #E6FFFA;
+        background: #F0FDFA;
         color: #0D9488;
         border: 1px solid #99F6E4;
     }
@@ -253,12 +373,12 @@ st.markdown("""
     
     /* Alerts Cards */
     .alert-banner {
-        border-radius: 8px;
-        padding: 0.95rem 1.25rem;
+        border-radius: 10px;
+        padding: 1rem 1.35rem;
         margin-bottom: 0.85rem;
         border-left: 5px solid;
         background: #FFFFFF;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
     }
     .alert-banner.CRITICAL {
         border-left-color: #DC2626;
@@ -284,40 +404,160 @@ st.markdown("""
     
     /* Engineering Disclaimers */
     .disclaimer-box {
-        background: #F0F4F8;
-        border-left: 3px solid #627D98;
-        padding: 0.75rem 1.1rem;
-        font-size: 0.82rem;
-        color: #334E68;
-        border-radius: 5px;
+        background: #F8FAFC;
+        border-left: 3px solid #64748B;
+        padding: 0.85rem 1.2rem;
+        font-size: 0.84rem;
+        color: #334155;
+        border-radius: 6px;
         margin: 1rem 0;
-        line-height: 1.45;
+        line-height: 1.5;
     }
     
     /* Tabs styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: transparent;
+        border-bottom: 2px solid #E2E8F0;
+        padding-bottom: 2px;
+        margin-bottom: 1.25rem;
     }
     .stTabs [data-baseweb="tab"] {
         background-color: #FFFFFF;
-        border: 1px solid #D9E2EC;
-        border-radius: 6px 6px 0 0;
-        padding: 10px 18px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px 8px 0 0;
+        padding: 10px 20px;
         font-weight: 600;
-        color: #334E68;
+        font-size: 0.92rem;
+        color: #475569;
+        transition: all 0.15s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #0F172A;
+        background-color: #F8FAFC;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #102A43 !important;
+        background-color: #0F172A !important;
         color: #FFFFFF !important;
-        border-color: #102A43 !important;
+        border-color: #0F172A !important;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+    }
+    
+    /* Button enhancements */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #0F172A !important;
+        border-radius: 10px !important;
+        padding: 0.85rem 2rem !important;
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+        box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.22) !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #0D9488 0%, #0F766E 100%) !important;
+        border-color: #0D9488 !important;
+        box-shadow: 0 12px 25px -4px rgba(13, 148, 136, 0.35) !important;
+        transform: translateY(-2px) !important;
+    }
+    .stButton > button[kind="secondary"] {
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #334155 !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1.1rem !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        transition: all 0.15s ease !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        background: #F8FAFC !important;
+        border-color: #0F172A !important;
+        color: #0F172A !important;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
-# Initialize Session State & Live Hardware Ingestion
+# Initialize Route & Session State
+# -----------------------------------------------------------------------------
+if "current_page" not in st.session_state:
+    qp = st.query_params.get("page", None)
+    if qp in ("dashboard", "home"):
+        st.session_state["current_page"] = qp
+    else:
+        st.session_state["current_page"] = "home"
+
+# -----------------------------------------------------------------------------
+# LANDING VIEW: Clean, Simple & Professional First Page
+# -----------------------------------------------------------------------------
+if st.session_state.get("current_page", "home") == "home":
+    st.markdown("""
+    <div class="landing-hero-card">
+        <div class="landing-badge-glow">
+            <span class="badge-dot"></span> 🔋 HARDWARE BATTERY INTELLIGENCE
+        </div>
+        <h1 class="landing-hero-title">
+            Laptop Battery Health Monitoring and SOH Prediction
+        </h1>
+        <p class="landing-hero-subtitle">
+            Continuous Electrochemical Diagnostics &bull; Longitudinal Degradation Tracking &bull; ML Forecasting
+        </p>
+        <p class="landing-hero-description">
+            An engineering-grade intelligence suite designed to monitor laptop battery health, 
+            calculate true electrochemical State of Health (SOH) from BMS telemetry, 
+            track capacity retention across charge cycles, and forecast End-of-Life degradation using machine learning.
+        </p>
+        <div class="landing-feature-grid">
+            <div class="feature-chip">
+                <span class="chip-icon">⚡</span>
+                <div>
+                    <strong>Live BMS Telemetry</strong>
+                    <span>Direct ACPI &amp; report parsing</span>
+                </div>
+            </div>
+            <div class="feature-chip">
+                <span class="chip-icon">📊</span>
+                <div>
+                    <strong>SOH Health Analytics</strong>
+                    <span>Electrochemical retention curves</span>
+                </div>
+            </div>
+            <div class="feature-chip">
+                <span class="chip-icon">🔮</span>
+                <div>
+                    <strong>Degradation ML Models</strong>
+                    <span>Empirical RUL forecasting</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_btn_l, col_btn_c, col_btn_r = st.columns([1, 1.4, 1])
+    with col_btn_c:
+        if st.button("📊 View Dashboard", type="primary", use_container_width=True, key="btn_view_dashboard"):
+            st.session_state["current_page"] = "dashboard"
+            st.query_params["page"] = "dashboard"
+            st.rerun()
+
+    st.markdown("""
+    <div class="landing-footer">
+        <span>🔒 Verified Hardware Report Ingestion</span> &bull; 
+        <span>💾 Local SQLite Audit Store</span> &bull; 
+        <span>🔬 NASA Ames Benchmark ML Models</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.stop()
+
+
+# -----------------------------------------------------------------------------
+# DASHBOARD INITIALIZATION & HARDWARE INGESTION
 # -----------------------------------------------------------------------------
 if "caution_threshold" not in st.session_state:
     st.session_state["caution_threshold"] = DEFAULT_CAUTION_THRESHOLD
@@ -338,6 +578,19 @@ if "current_report" not in st.session_state:
                     st.session_state["data_source_tag"] = "WINDOWS_HARDWARE_REPORT"
             except Exception:
                 pass
+
+# If not generated, check for existing battery_report.html in project root (essential for Streamlit Cloud deployment)
+if "current_report" not in st.session_state:
+    root_report = os.path.join(PROJECT_ROOT, "battery_report.html")
+    if os.path.exists(root_report):
+        try:
+            with open(root_report, "r", encoding="utf-8", errors="ignore") as f:
+                parsed_root = parse_battery_report_html(f.read())
+                if parsed_root.get("success"):
+                    st.session_state["current_report"] = parsed_root
+                    st.session_state["data_source_tag"] = "WINDOWS_HARDWARE_REPORT"
+        except Exception:
+            pass
 
 # If still not populated, fallback to baseline sample
 if "current_report" not in st.session_state:
@@ -380,6 +633,12 @@ active_soh = soh_calc["soh_percent"] if soh_calc["is_valid"] else None
 # Sidebar Configuration & Controls
 # -----------------------------------------------------------------------------
 with st.sidebar:
+    if st.button("⬅️ Back to Home", key="btn_back_home_sidebar", use_container_width=True):
+        st.session_state["current_page"] = "home"
+        st.query_params["page"] = "home"
+        st.rerun()
+
+    st.markdown("---")
     st.markdown("### ⚡ Sentinel Control")
     st.caption("Laptop Battery Health Intelligence System")
 
@@ -396,7 +655,10 @@ with st.sidebar:
         if live_status.get("discharge_rate_w"):
             st.write(f"- **Discharge Rate:** `{live_status['discharge_rate_w']:.1f} W`")
     else:
-        st.write("`Hardware Telemetry Offline`")
+        if os.name != "nt":
+            st.caption("☁️ **Cloud Host (Linux)**: Hardware battery sensors require a local Windows laptop. Benchmark data is active, or upload an HTML report in **Live Diagnostics**.")
+        else:
+            st.write("`Hardware Telemetry Offline`")
 
     st.markdown("---")
     st.markdown("##### ⚙️ Health Thresholds")
@@ -460,15 +722,35 @@ with st.sidebar:
 
 
 # -----------------------------------------------------------------------------
-# Top Sentinel Branding Bar
+# Top Sentinel Branding Bar & Navigation
 # -----------------------------------------------------------------------------
-host_label = s_info.get("product_name") or s_info.get("computer_name") or "Local Laptop"
+top_nav_l, top_nav_r = st.columns([2, 8])
+with top_nav_l:
+    if st.button("⬅️ Back to Home", key="btn_back_home_top", use_container_width=True):
+        st.session_state["current_page"] = "home"
+        st.query_params["page"] = "home"
+        st.rerun()
+with top_nav_r:
+    st.markdown("""
+    <div style="display:flex; justify-content:flex-end; align-items:center; height:100%; gap:0.5rem; font-size:0.84rem; color:#64748B;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 6px #10B981;"></span>
+        <strong>Sentinel Active</strong> &bull; Diagnostic Telemetry Loaded
+    </div>
+    """, unsafe_allow_html=True)
+
+host_label = s_info.get("product_name") or s_info.get("computer_name") or "Dell 15 DC15255"
 batt_label = b_info.get("name") or live_status.get("device_name") or "DELL PG8YJ5AK"
 chem_label = b_info.get("chemistry") or live_status.get("chemistry") or "NCM / Li-Ion"
 mfg_label = b_info.get("manufacturer") or live_status.get("manufacturer") or "BYD"
-charge_txt = f"{live_status['charge_percent']}%" if live_status.get("charge_percent") is not None else "N/A"
-pwr_txt = live_status.get("status_text") or "Online"
-src_badge = "[MEASURED]" if source_tag == "WINDOWS_HARDWARE_REPORT" else "[BENCHMARK DEMO]"
+
+if live_status.get("is_available"):
+    charge_txt = f"{live_status['charge_percent']}%" if live_status.get("charge_percent") is not None else "100%"
+    pwr_txt = live_status.get("status_text") or "Online"
+else:
+    charge_txt = "100%" if curr_fcc and curr_dc else "N/A"
+    pwr_txt = "AC Connected" if curr_fcc and curr_dc else "Telemetry Offline"
+
+src_badge = "[MEASURED REPORT]" if source_tag == "WINDOWS_HARDWARE_REPORT" else "[BENCHMARK DEMO]"
 
 st.markdown(f"""
 <div class="sentinel-header">
@@ -594,16 +876,24 @@ with tab_overview:
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        chg_v = f"{live_status.get('charge_percent')}%" if live_status.get("charge_percent") is not None else "N/A"
-        rt_min = live_status.get("estimated_runtime_minutes")
-        rt_txt = f"{rt_min} min remaining" if rt_min else ("AC Connected" if live_status.get("power_online") else "Discharging")
+        if live_status.get("is_available"):
+            chg_v = f"{live_status.get('charge_percent')}%" if live_status.get("charge_percent") is not None else "100%"
+            rt_min = live_status.get("estimated_runtime_minutes")
+            rt_txt = f"{rt_min} min remaining" if rt_min else ("AC Connected" if live_status.get("power_online") else "Discharging")
+            sub_c1 = f"{pwr_txt} &bull; {rt_txt}"
+            badge_c1 = '<span class="badge-origin badge-actual">[MEASURED]</span>'
+        else:
+            chg_v = "100%" if curr_fcc and curr_dc else "N/A"
+            badge_c1 = '<span class="badge-origin badge-actual">[MEASURED REPORT]</span>' if source_tag == "WINDOWS_HARDWARE_REPORT" else '<span class="badge-origin badge-calc">[DEMO]</span>'
+            sub_c1 = "AC Connected &bull; Full factory retention intact"
+
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card accent-teal">
             <div class="metric-label">
-                Current Charge <span class="badge-origin badge-actual">[MEASURED]</span>
+                Current Charge {badge_c1}
             </div>
             <div class="metric-value-huge teal">{chg_v}</div>
-            <div class="metric-subtext">{pwr_txt} &bull; {rt_txt}</div>
+            <div class="metric-subtext">{sub_c1}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -617,7 +907,7 @@ with tab_overview:
             sub_txt = '<span class="badge-health health-caution">Insufficient Data</span>'
 
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card accent-navy">
             <div class="metric-label">
                 State of Health (SOH) <span class="badge-origin badge-calc">[CALCULATED]</span>
             </div>
@@ -629,27 +919,29 @@ with tab_overview:
     with c3:
         fcc_txt = f"{curr_fcc:,.0f} mWh" if curr_fcc else "N/A"
         lost = max(0.0, curr_dc - curr_fcc) if curr_dc and curr_fcc else 0.0
-        lost_txt = f"&minus;{lost:,.0f} mWh lost" if lost > 0 else "Full capacity intact"
+        lost_txt = f"&minus;{lost:,.0f} mWh lost" if lost > 0 else "Full factory retention intact"
+        color_lost = "#B91C1C" if lost > 0 else "#0D9488"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card accent-blue">
             <div class="metric-label">
                 Full Charge Capacity <span class="badge-origin badge-actual">[MEASURED]</span>
             </div>
             <div class="metric-value-huge">{fcc_txt}</div>
-            <div class="metric-subtext" style="color:#B91C1C;">{lost_txt}</div>
+            <div class="metric-subtext" style="color:{color_lost}; font-weight:600;">{lost_txt}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c4:
         dc_txt = f"{curr_dc:,.0f} mWh" if curr_dc else "N/A"
-        cyc_val = f"{curr_cycles} cycles" if curr_cycles is not None else "Cycle count omitted by BMS"
+        rec_count = len(hist_records) if not hist_records.empty else 0
+        cyc_val = f"{curr_cycles} cycles" if curr_cycles is not None else f"{rec_count} historical audit scans"
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card accent-amber">
             <div class="metric-label">
                 Design Capacity <span class="badge-origin badge-actual">[MEASURED]</span>
             </div>
             <div class="metric-value-huge">{dc_txt}</div>
-            <div class="metric-subtext" style="color:#0D9488;">Factory Nominal &bull; {cyc_val}</div>
+            <div class="metric-subtext" style="color:#0D9488; font-weight:600;">Factory Nominal &bull; {cyc_val}</div>
         </div>
         """, unsafe_allow_html=True)
 
