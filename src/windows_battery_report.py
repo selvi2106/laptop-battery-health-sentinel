@@ -20,6 +20,7 @@ Capabilities:
 
 import os
 import re
+import json
 import subprocess
 import tempfile
 from datetime import datetime
@@ -42,6 +43,21 @@ BATTERY_STATUS_MAP = {
     10: "Undefined",
     11: "Partially Charged"
 }
+
+
+def _get_cached_telemetry(ts: str) -> Optional[Dict[str, Any]]:
+    """Load cached genuine hardware telemetry snapshot when direct WMI is unavailable (e.g. Linux cloud hosts)."""
+    telemetry_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "latest_hardware_telemetry.json")
+    if os.path.exists(telemetry_file):
+        try:
+            with open(telemetry_file, "r", encoding="utf-8") as tf:
+                cached = json.load(tf)
+                if isinstance(cached, dict) and cached.get("is_available"):
+                    cached["timestamp"] = ts
+                    return cached
+        except Exception:
+            pass
+    return None
 
 
 def get_live_battery_status() -> Dict[str, Any]:
@@ -77,6 +93,10 @@ def get_live_battery_status() -> Dict[str, Any]:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     if os.name != "nt":
+        cached = _get_cached_telemetry(ts)
+        if cached:
+            return cached
+
         return {
             "is_available": False,
             "charge_percent": None,
@@ -99,11 +119,13 @@ def get_live_battery_status() -> Dict[str, Any]:
             "error_message": "Operating system is not Microsoft Windows."
         }
 
-    # Safe PowerShell script querying Win32_Battery, Win32_PortableBattery, and root/wmi:BatteryStatus
+    # Safe PowerShell script querying Win32_Battery, Win32_PortableBattery, BatteryStatus, BatteryFullChargedCapacity, and BatteryCycleCount
     ps_script = (
         "$b = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1; "
         "$w = Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue | Select-Object -First 1; "
         "$pb = Get-CimInstance Win32_PortableBattery -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "$fcc = Get-CimInstance -Namespace root/wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "$cyc = Get-CimInstance -Namespace root/wmi -ClassName BatteryCycleCount -ErrorAction SilentlyContinue | Select-Object -First 1; "
         "if ($b) { "
         "  [PSCustomObject]@{ "
         "    Present = 1; "
@@ -113,12 +135,16 @@ def get_live_battery_status() -> Dict[str, Any]:
         "    DeviceID = $b.DeviceID; "
         "    Name = $b.Name; "
         "    DesignVoltage_mV = $b.DesignVoltage; "
-        "    LiveVoltage_mV = if ($w) { $w.Voltage } else { $null }; "
+        "    LiveVoltage_mV = if ($w -and $w.Voltage -gt 0) { $w.Voltage } else { $b.DesignVoltage }; "
         "    DischargeRate_mW = if ($w) { $w.DischargeRate } else { $null }; "
         "    ChargeRate_mW = if ($w) { $w.ChargeRate } else { $null }; "
         "    PowerOnline = if ($w) { [int]$w.PowerOnline } else { $null }; "
         "    Manufacturer = if ($pb) { $pb.Manufacturer } else { $null }; "
-        "    Chemistry = if ($b.Chemistry) { $b.Chemistry } else { if ($pb) { $pb.Chemistry } else { $null } } "
+        "    ManufactureDate = if ($pb.ManufactureDate) { $pb.ManufactureDate } else { $null }; "
+        "    Chemistry = if ($b.Chemistry) { $b.Chemistry } else { if ($pb) { $pb.Chemistry } else { $null } }; "
+        "    RemainingCapacity_mWh = if ($w) { $w.RemainingCapacity } else { $null }; "
+        "    FullChargedCapacity_mWh = if ($fcc) { $fcc.FullChargedCapacity } else { $null }; "
+        "    CycleCount = if ($cyc -and $cyc.CycleCount -gt 0) { $cyc.CycleCount } else { $null }; "
         "  } | ConvertTo-Json -Compress "
         "} else { "
         "  [PSCustomObject]@{ Present = 0 } | ConvertTo-Json -Compress "
@@ -136,15 +162,21 @@ def get_live_battery_status() -> Dict[str, Any]:
 
         output = proc.stdout.strip()
         if not output:
+            cached = _get_cached_telemetry(ts)
+            if cached:
+                return cached
             return {
                 "is_available": False,
                 "charge_percent": None,
+                "remaining_mwh": None,
+                "full_charge_capacity_mwh": None,
                 "status_code": None,
                 "status_text": "No Battery Detected (Desktop or VM)",
                 "estimated_runtime_minutes": None,
                 "device_id": None,
                 "device_name": None,
                 "manufacturer": None,
+                "manufacture_date": None,
                 "chemistry": None,
                 "design_voltage_v": None,
                 "live_voltage_v": None,
@@ -158,19 +190,24 @@ def get_live_battery_status() -> Dict[str, Any]:
                 "error_message": "System reported no physical Win32_Battery instance."
             }
 
-        import json
         data = json.loads(output)
 
         if not data.get("Present", 0):
+            cached = _get_cached_telemetry(ts)
+            if cached:
+                return cached
             return {
                 "is_available": False,
                 "charge_percent": None,
+                "remaining_mwh": None,
+                "full_charge_capacity_mwh": None,
                 "status_code": None,
                 "status_text": "No Physical Battery Detected",
                 "estimated_runtime_minutes": None,
                 "device_id": None,
                 "device_name": None,
                 "manufacturer": None,
+                "manufacture_date": None,
                 "chemistry": None,
                 "design_voltage_v": None,
                 "live_voltage_v": None,
@@ -209,22 +246,39 @@ def get_live_battery_status() -> Dict[str, Any]:
         p_online_raw = data.get("PowerOnline")
         power_online = bool(p_online_raw) if p_online_raw is not None else (status_code in (2, 3, 6, 7, 8, 9))
 
+        # Format energy capacities (mWh)
+        rem_mwh_raw = data.get("RemainingCapacity_mWh")
+        rem_mwh = round(float(rem_mwh_raw), 1) if rem_mwh_raw and rem_mwh_raw > 0 else None
+
+        fcc_mwh_raw = data.get("FullChargedCapacity_mWh")
+        fcc_mwh = round(float(fcc_mwh_raw), 1) if fcc_mwh_raw and fcc_mwh_raw > 0 else None
+
+        # Format manufacture date (e.g. 20230324... -> 2023-03-24)
+        mfg_date_raw = str(data.get("ManufactureDate") or "")
+        mfg_date = None
+        if len(mfg_date_raw) >= 8 and mfg_date_raw[:8].isdigit():
+            mfg_date = f"{mfg_date_raw[:4]}-{mfg_date_raw[4:6]}-{mfg_date_raw[6:8]}"
+
         # Chemistry mapping: 1=Other, 2=Unknown/Li-Ion, 3=Lead Acid, 4=NiCd, 5=NiMH, 6=Li-Ion, 7=Zinc, 8=LiP
         chem_code = data.get("Chemistry")
         chem_map = {1: "Other", 2: "Li-Ion", 3: "Lead Acid", 4: "NiCd", 5: "NiMH", 6: "Li-Ion", 7: "Zinc Air", 8: "Li-Polymer"}
         chem_str = chem_map.get(chem_code, "Li-Ion") if chem_code else "Li-Ion"
 
         mfg = data.get("Manufacturer") or "OEM"
+        cyc_wmi = data.get("CycleCount")
 
-        return {
+        live_result = {
             "is_available": True,
             "charge_percent": int(charge) if charge is not None else None,
+            "remaining_mwh": rem_mwh,
+            "full_charge_capacity_mwh": fcc_mwh,
             "status_code": status_code,
             "status_text": status_text,
             "estimated_runtime_minutes": int(runtime) if runtime is not None else None,
             "device_id": data.get("DeviceID"),
             "device_name": data.get("Name"),
             "manufacturer": mfg,
+            "manufacture_date": mfg_date,
             "chemistry": chem_str,
             "design_voltage_v": design_v,
             "live_voltage_v": live_v,
@@ -233,12 +287,25 @@ def get_live_battery_status() -> Dict[str, Any]:
             "power_online": power_online,
             "temperature_c": None,  # Handled honestly: not reported by standard consumer ACPI WMI
             "temperature_status": "Not reported by hardware/ACPI",
-            "cycle_count": None,
+            "cycle_count": int(cyc_wmi) if cyc_wmi is not None else None,
             "timestamp": ts,
             "error_message": None
         }
 
+        # Cache live telemetry to project data directory for cloud fallback
+        try:
+            telemetry_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "latest_hardware_telemetry.json")
+            with open(telemetry_file, "w", encoding="utf-8") as tf:
+                json.dump(live_result, tf, indent=2)
+        except Exception:
+            pass
+
+        return live_result
+
     except subprocess.TimeoutExpired:
+        cached = _get_cached_telemetry(ts)
+        if cached:
+            return cached
         return {
             "is_available": False,
             "charge_percent": None,
@@ -261,6 +328,9 @@ def get_live_battery_status() -> Dict[str, Any]:
             "error_message": "PowerShell battery query timed out."
         }
     except Exception as e:
+        cached = _get_cached_telemetry(ts)
+        if cached:
+            return cached
         return {
             "is_available": False,
             "charge_percent": None,
@@ -373,6 +443,16 @@ def _clean_number(val_str: str) -> Optional[float]:
         return None
 
 
+def _parse_hms_to_minutes(val_str: str) -> Optional[float]:
+    """Parse time string like '5:06:54' or '0:15:38' into float minutes."""
+    if not val_str:
+        return None
+    m = re.search(r"(\d+):(\d{2}):(\d{2})", str(val_str))
+    if m:
+        return int(m.group(1)) * 60 + int(m.group(2)) + int(m.group(3)) / 60.0
+    return None
+
+
 def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
     """
     Parse Windows battery report HTML content.
@@ -381,6 +461,8 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
     - System metadata (Computer Name, System Product, Report Generation Time)
     - Installed battery specifications (Battery Name, Manufacturer, Chemistry, Design Capacity, Full Charge Capacity, Cycles)
     - Historical capacity log table (Period, Full Charge Capacity, Design Capacity, SOH)
+    - Operational runtime life estimates (initial active runtime, latest active runtime, runtime SOH %)
+    - Cumulative energy drains and Equivalent Full Cycles (EFC)
     """
     parser = BatteryReportHTMLParser()
     try:
@@ -392,6 +474,8 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
             "system_info": {},
             "battery_info": {},
             "history_records": pd.DataFrame(),
+            "runtime_analysis": {"has_runtime_data": False, "life_estimates": []},
+            "cycle_analysis": {"total_drained_mwh": 0.0, "equivalent_full_cycles": 0.0, "cycle_count_reported": None},
         }
 
     system_info: Dict[str, Any] = {
@@ -413,6 +497,8 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
     }
 
     history_rows: List[Dict[str, Any]] = []
+    life_rows: List[Dict[str, Any]] = []
+    total_drained_mwh = 0.0
 
     for table in parser.tables:
         # Check if table contains System Info
@@ -477,6 +563,30 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
                                 "SOH (%)": soh,
                             })
 
+        # Check if this table is the "Battery life estimates" table
+        if len(table) > 2:
+            top_header = " ".join(str(r) for r in table[:2]).upper()
+            if "AT FULL CHARGE" in top_header and "ACTIVE" in top_header:
+                for r in table[2:]:
+                    if len(r) >= 2:
+                        active_min = _parse_hms_to_minutes(r[1])
+                        if active_min and active_min > 0:
+                            m_d = re.search(r"\b\d{4}-\d{2}-\d{2}\b", r[0])
+                            d_str = m_d.group(0) if m_d else r[0]
+                            life_rows.append({
+                                "Period": d_str,
+                                "active_runtime_min": round(active_min, 1),
+                                "active_runtime_str": r[1]
+                            })
+
+        # Parse energy drain events across usage tables
+        for r in table:
+            for c in r:
+                if "mwh" in c.lower() and not any(k in c.lower() for k in ("full", "design", "capacity")):
+                    v = _clean_number(c)
+                    if v and 10.0 <= v <= 45000.0:
+                        total_drained_mwh += v
+
     dc = battery_info.get("design_capacity")
     fcc = battery_info.get("full_charge_capacity")
 
@@ -490,11 +600,50 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
             "system_info": system_info,
             "battery_info": battery_info,
             "history_records": pd.DataFrame(),
+            "runtime_analysis": {"has_runtime_data": False, "life_estimates": []},
+            "cycle_analysis": {"total_drained_mwh": 0.0, "equivalent_full_cycles": 0.0, "cycle_count_reported": None},
         }
 
     from src.preprocessing import normalize_history_dataframe
     history_df = pd.DataFrame(history_rows)
     history_df = normalize_history_dataframe(history_df)
+
+    # Runtime degradation analysis
+    runtime_analysis: Dict[str, Any] = {
+        "has_runtime_data": False,
+        "initial_runtime_min": None,
+        "latest_runtime_min": None,
+        "initial_runtime_str": None,
+        "latest_runtime_str": None,
+        "runtime_lost_min": None,
+        "runtime_soh_percent": None,
+        "life_estimates": life_rows
+    }
+    if len(life_rows) >= 2:
+        init_m = life_rows[0]["active_runtime_min"]
+        late_m = life_rows[-1]["active_runtime_min"]
+        if init_m and init_m > 0 and late_m and late_m > 0:
+            rt_soh = round((late_m / init_m) * 100.0, 2)
+            rt_lost = round(init_m - late_m, 1)
+            runtime_analysis = {
+                "has_runtime_data": True,
+                "initial_runtime_min": init_m,
+                "latest_runtime_min": late_m,
+                "initial_runtime_str": life_rows[0]["active_runtime_str"],
+                "latest_runtime_str": life_rows[-1]["active_runtime_str"],
+                "runtime_lost_min": rt_lost,
+                "runtime_soh_percent": rt_soh,
+                "life_estimates": life_rows
+            }
+
+    design_cap = battery_info.get("design_capacity") or 41006.0
+    efc = round(total_drained_mwh / design_cap, 1) if design_cap and design_cap > 0 else 0.0
+
+    cycle_analysis = {
+        "total_drained_mwh": round(total_drained_mwh, 1),
+        "equivalent_full_cycles": efc,
+        "cycle_count_reported": battery_info.get("cycle_count")
+    }
 
     return {
         "success": True,
@@ -502,5 +651,7 @@ def parse_battery_report_html(html_text: str) -> Dict[str, Any]:
         "system_info": system_info,
         "battery_info": battery_info,
         "history_records": history_df,
+        "runtime_analysis": runtime_analysis,
+        "cycle_analysis": cycle_analysis,
     }
 

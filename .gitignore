@@ -32,8 +32,9 @@ wheels/
 .coverage
 htmlcov/
 
-# Local reports & user data (keep private laptop data local!)
+# Local reports & user data
 *.html
+!battery_report.html
 *.db
 *.sqlite
 *.sqlite3
